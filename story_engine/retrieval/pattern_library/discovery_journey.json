@@ -1,0 +1,12 @@
+{
+  "pattern_name": "discovery_journey",
+  "genres": ["fantasy", "adventure"],
+  "acts": ["introduction", "discovery", "challenge", "cooperation", "resolution"],
+  "emotion_curve": [1, 2, 3, 2, 1],
+  "pacing_notes": [
+    "Open with warmth and clarity.",
+    "Reveal one surprising but safe discovery.",
+    "Let the challenge be solvable through cooperation.",
+    "Resolve with changed understanding, not punishment."
+  ]
+}

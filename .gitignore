@@ -1,5 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+story_engine/**/__pycache__/
+tests/**/__pycache__/
 *.py[codz]
 *$py.class
 
@@ -57,6 +59,7 @@ cover/
 
 # Django stuff:
 *.log
+logs/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -216,3 +219,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+.env

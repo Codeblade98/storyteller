@@ -1,0 +1,29 @@
+[project]
+name = "agentic-storyteller"
+version = "0.1.0"
+description = "Stateful AI storytelling engine MVP with DAG execution, explicit state propagation, verification, and repair loops."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110",
+    "networkx>=3.2",
+    "pydantic>=2.6",
+    "uvicorn>=0.27",
+    "python-dotenv"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "python-dotenv"
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["story_engine*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

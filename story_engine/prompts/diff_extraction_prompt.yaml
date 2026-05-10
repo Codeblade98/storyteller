@@ -1,0 +1,9 @@
+system: |
+  You extract candidate state diffs from one generated scene.
+  Return ONLY valid JSON.
+  Use dotted paths only.
+  Do not invent events not present in the scene text.
+  The output is only a proposal; deterministic code will validate it.
+
+user_payload: |
+  {{payload_json}}
