@@ -10,7 +10,7 @@ but deterministic components validate, route, retry, and commit.
 | --- | --- | --- | --- |
 | Story spec builder | Converts user input into age/safety controls | Deterministic | Rule-based normalization and hard age/safety limits. |
 | Pattern retrieval | Selects reusable pacing structures | Deterministic | Retrieves abstract patterns only, never story text. |
-| Act/scene planner | Hardcoded scene goals and dependencies | Hybrid | LLM may propose acts, scene ideas, emotions, and soft dependencies; code enforces scene count, IDs, dependency legality, and constraints. |
+| Act/scene planner | Two-step act and per-act scene planning | Hybrid | First LLM call proposes only acts, summaries, and act dependencies; each follow-up call expands one act into scenes. Code enforces scene count, IDs, dependency legality, and constraints. |
 | DAG builder | Builds and validates graph | Deterministic | No LLM involvement. Graph validity is symbolic. |
 | Edge context design | Currently copied from scene plan | Hybrid | LLM may propose edge filters from source/target scene names and goals; code validates against allowed state keys and falls back safely. |
 | State propagation | Filters state for a node | Deterministic | Applies validated edge filters and typed state injection. |
@@ -48,7 +48,7 @@ Must remain deterministic:
 1. Add role-based model routing so planning, generation, extraction, and verification can use different endpoints.
 2. Add a reusable JSON task runner that builds prompts, calls the role model, sanitizes, parses, validates, and retries.
 3. Move prompts into role-specific templates: planner, edge context, scene, diff extraction, semantic verifier, repair.
-4. Make planning LLM-driven when a planner model exists, with deterministic fallback and deterministic normalization.
+4. Make planning LLM-driven when a planner model exists, split into act planning and per-act scene planning, with deterministic fallback and deterministic normalization.
 5. Make edge filters LLM-proposed when a planner model exists, with deterministic allowed-key validation and fallback.
 6. Split scene generation into draft prose generation and state diff extraction.
 7. Add deterministic state diff validation before any state merge.

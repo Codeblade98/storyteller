@@ -39,9 +39,9 @@ class StoryEngine:
             generator: Optional custom SceneGenerator. If not provided,
                       a default one is created.
         """
-        self.spec_builder = StorySpecBuilder()
         self.pattern_library = PatternLibrary()
         self.llm_runner = llm_runner or JSONTaskRunner(router=model_router)
+        self.spec_builder = StorySpecBuilder(llm_runner=self.llm_runner)
         self.planner = ActScenePlanner(llm_runner=self.llm_runner)
         self.dag_builder = SceneDAGBuilder(edge_context_designer=EdgeContextDesigner(llm_runner=self.llm_runner))
         self.generator = generator or SceneGenerator(llm_runner=self.llm_runner)
@@ -74,6 +74,8 @@ class StoryEngine:
             story_input.genre,
             story_input.length,
         )
+        
+        ## 1. Build the story specification from user input
         spec = self.spec_builder.build(story_input)
         logger.info(
             "spec_built topic=%r target_scene_count=%s vocab_level=%s fear_level=%s",
@@ -82,10 +84,21 @@ class StoryEngine:
             spec.vocab_level,
             spec.fear_level,
         )
+                
+        ## 2. Run pattern selction from pattern library
         pattern = self.pattern_library.select(spec.genre, spec.target_scene_count)
         logger.info("pattern_selected pattern=%s acts=%s", pattern.pattern_name, len(pattern.acts))
-        scene_plans = self.planner.plan(spec, pattern)
-        logger.info("scene_plan_created scenes=%s ids=%s", len(scene_plans), [plan.scene_id for plan in scene_plans])
+        
+        ## 3. Build hierarchical story plan from the story specification and pattern
+        story_plan = self.planner.plan(spec, pattern)
+        scene_plans = story_plan.flatten_scenes()
+        logger.info(
+            "story_plan_created acts=%s scenes=%s ids=%s",
+            len(story_plan.acts),
+            len(scene_plans),
+            [plan.scene_id for plan in scene_plans],
+        )
+        
         dag = self.dag_builder.build(scene_plans)
         logger.info("dag_built nodes=%s edges=%s", len(dag.nodes), len(dag.edges))
         run = self.executor.execute(spec, dag)

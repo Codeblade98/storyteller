@@ -1,5 +1,11 @@
 from story_engine.models.story_spec import StoryInput, StorySpec
+from story_engine.llm.json_runner import JSONTaskRunner
+from story_engine.models.llm_contracts import StorySpecContract
+from dataclasses import asdict
 
+import logging
+
+logger = logging.getLogger("story_engine.engine")
 
 class StorySpecBuilder:
     """Converts high-level story input into detailed generation specifications.
@@ -7,6 +13,9 @@ class StorySpecBuilder:
     Determines narrative parameters like vocabulary, sentence complexity,
     and moral themes based on age group and story preferences.
     """
+    def __init__(self, llm_runner: JSONTaskRunner | None = None) -> None:
+        self.llm_runner = llm_runner
+        
     def build(self, story_input: StoryInput) -> StorySpec:
         """Build a detailed story specification from user input.
 
@@ -19,9 +28,19 @@ class StorySpecBuilder:
         Returns:
             A StorySpec ready for planning and generation.
         """
-        target_scene_count = 6 if story_input.length == "short" else 8
         vocab_level, sentence_complexity = self._age_controls(story_input.age_group)
-        moral_theme = self._infer_theme(story_input.topic)
+        
+        llm_inferred_spec = self._llm_infer_specs(story_input)
+        if llm_inferred_spec is not None:
+            allowed_conflict = llm_inferred_spec.allowed_conflict
+            forbidden_elements = llm_inferred_spec.forbidden_elements
+            moral_theme = llm_inferred_spec.moral_theme
+            target_act_count = llm_inferred_spec.target_act_count
+        else:
+            allowed_conflict = []
+            forbidden_elements = ["death", "gore", "explicit violence", "cruel punishment"]
+            moral_theme = self._infer_theme(story_input.topic)
+            target_act_count = 5 if story_input.length == "short" else 10
 
         return StorySpec(
             topic=story_input.topic,
@@ -31,10 +50,10 @@ class StorySpecBuilder:
             length=story_input.length,
             vocab_level=vocab_level,
             sentence_complexity=sentence_complexity,
-            allowed_conflict=min(story_input.fear_level, 3),
-            forbidden_elements=["death", "gore", "explicit violence", "cruel punishment"],
+            allowed_conflict=allowed_conflict,
+            forbidden_elements=forbidden_elements,
             moral_theme=moral_theme,
-            target_scene_count=target_scene_count,
+            target_act_count=target_act_count,
         )
 
     def _age_controls(self, age_group: str) -> tuple[str, int]:
@@ -69,3 +88,25 @@ class StorySpecBuilder:
         if "share" in lowered:
             return "generosity"
         return "kindness"
+
+    def _llm_infer_specs(self, story_input: StoryInput) -> StorySpecContract | None:
+        """Use an LLM to infer detailed story specifications from high-level input.
+
+        Args:
+            story_input: High-level user input for story generation.
+
+        Returns:
+            A StorySpecContract with inferred parameters, or None if inference fails.
+        """
+        try:
+            contract = StorySpecContract()
+            response = self.llm_runner.run_json_task(
+                role="spec_builder",
+                template_name="spec_builder_prompt.yaml",
+                output_model=StorySpecContract,
+                payload={"story_input": asdict(story_input)},
+            )
+            return StorySpecContract.model_validate(response)
+        except Exception as e:
+            logger.warning("LLM spec inference failed: %s", e)
+            return None

@@ -67,6 +67,7 @@ class PatternLibrary:
         Raises:
             RuntimeError: If no patterns are found in the library.
         """
+        ## TODO: Add more patterns to the library and consider caching them if loading becomes expensive.
         patterns = []
         for path in sorted(self.library_dir.glob("*.json")):
             patterns.append(StoryPattern.model_validate(json.loads(path.read_text())))
@@ -89,6 +90,7 @@ class PatternLibrary:
         if len(acts) == count and len(curve) == count:
             return pattern
 
+        ## TBD: More sophisticated interpolation could be done here, but for now we will just repeat elements as needed.
         fitted_acts = [acts[min(int(index * len(acts) / count), len(acts) - 1)] for index in range(count)]
         fitted_curve = [curve[min(int(index * len(curve) / count), len(curve) - 1)] for index in range(count)]
         return pattern.model_copy(update={"acts": fitted_acts, "emotion_curve": fitted_curve})

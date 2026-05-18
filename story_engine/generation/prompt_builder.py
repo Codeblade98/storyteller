@@ -1,7 +1,7 @@
-import json
 from pathlib import Path
 from typing import Any
 
+from story_engine.llm.json_runner import RenderedPrompt, _load_prompt_template, render_payload_markdown
 from story_engine.models.node import SceneNode
 from story_engine.models.story_spec import StorySpec
 
@@ -25,7 +25,7 @@ class PromptBuilder:
         spec: StorySpec,
         filtered_state: dict[str, Any],
         repair_instructions: list[str] | None = None,
-    ) -> str:
+    ) -> RenderedPrompt:
         """Build an LLM prompt for scene generation.
 
         Args:
@@ -35,9 +35,9 @@ class PromptBuilder:
             repair_instructions: Optional repair hints from verification.
 
         Returns:
-            Formatted prompt string ready for LLM.
+            Formatted system prompt and markdown user payload ready for LLM.
         """
-        template = (self.template_dir / "scene_generation.yaml").read_text()
+        template = _load_prompt_template(self.template_dir / "scene_generation.yaml")
         payload = {
             "scene_id": node.scene_id,
             "scene_goal": node.plan.goal,
@@ -52,4 +52,7 @@ class PromptBuilder:
             },
             "repair_instructions": repair_instructions or [],
         }
-        return template.replace("{{payload_json}}", json.dumps(payload, ensure_ascii=True, indent=2))
+        payload_markdown = render_payload_markdown(payload)
+        user_payload = template.user_payload.replace("{{payload_markdown}}", payload_markdown)
+        user_payload = user_payload.replace("{{payload_json}}", payload_markdown)
+        return RenderedPrompt(system_prompt=template.system_prompt, user_payload=user_payload)

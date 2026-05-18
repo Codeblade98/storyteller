@@ -14,6 +14,7 @@ GROQ_MODEL_FOR_ROLE = {
     "generator": "qwen-2.5-32b",              # Creative generation
     "extractor": "gemma-2-9b-it",             # State extraction
     "verifier": "qwen-2.5-32b",               # Verification logic
+    "default": "qwen-2.5-32b",                # Default model
 }
 
 
@@ -25,16 +26,17 @@ class ModelRouter:
         """Initialize default Groq clients for each role if not provided."""
         if not self.clients:
             # Initialize Groq clients for all roles
-            for role in ["planner", "generator", "extractor", "verifier"]:
+            for role in GROQ_MODEL_FOR_ROLE.keys():
                 role_typed: LLMRole = role  # type: ignore
                 try:
-                    model = GROQ_MODEL_FOR_ROLE[role]
-                    self.clients[role_typed] = GroqClient(model=model)
+                    model = GROQ_MODEL_FOR_ROLE.get(role)
+                    self.clients[role_typed] = GroqClient(model="openai/gpt-oss-20b")
                 except ValueError:
                     # API key not provided, skip initialization
                     pass
 
     def client_for(self, role: LLMRole) -> LLMClient | None:
+        role = role if role in self.clients else "default"
         return self.clients.get(role)
 
     def with_client(self, role: LLMRole, client: LLMClient) -> "ModelRouter":

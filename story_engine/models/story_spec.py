@@ -57,7 +57,7 @@ class StorySpec(ModelMixin):
         length: Story length.
         vocab_level: Vocabulary complexity level.
         sentence_complexity: Sentence structure complexity (1-4).
-        allowed_conflict: Maximum allowed conflict intensity (0-5).
+        allowed_conflict: Showing what type of conflict is expected, [] for children's stories.
         forbidden_elements: List of elements that must not appear.
         moral_theme: Primary moral lesson.
         target_scene_count: Expected number of scenes to generate.
@@ -72,7 +72,7 @@ class StorySpec(ModelMixin):
     length: Length
     vocab_level: Literal["early", "simple", "clear", "rich"]
     sentence_complexity: int
-    allowed_conflict: int
+    allowed_conflict: list[str]
     forbidden_elements: list[str]
     moral_theme: str
     target_scene_count: int
@@ -82,7 +82,3 @@ class StorySpec(ModelMixin):
             raise ValueError("fear_level must be between 0 and 5")
         if not 1 <= self.sentence_complexity <= 4:
             raise ValueError("sentence_complexity must be between 1 and 4")
-        if not 0 <= self.allowed_conflict <= 5:
-            raise ValueError("allowed_conflict must be between 0 and 5")
-        if not 3 <= self.target_scene_count <= 10:
-            raise ValueError("target_scene_count must be between 3 and 10")

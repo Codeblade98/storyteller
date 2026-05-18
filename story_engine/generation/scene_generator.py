@@ -3,7 +3,7 @@ import logging
 
 from story_engine.generation.prompt_builder import PromptBuilder
 from story_engine.llm.client import LLMClient
-from story_engine.llm.json_runner import JSONTaskRunner
+from story_engine.llm.json_runner import JSONTaskRunner, _complete_json
 from story_engine.llm.parser import JSONParser
 from story_engine.llm.retry import RetryPolicy
 from story_engine.models.llm_contracts import SceneDraftContract
@@ -65,9 +65,11 @@ class SceneGenerator:
         if self.llm_client:
             logger.info("scene_generator_using_direct_llm scene_id=%s attempt=%s", node.scene_id, attempt)
             prompt = self.prompt_builder.build_scene_prompt(node, spec, filtered_state, repair_instructions)
-            raw = self.llm_client.complete_json(
-                prompt,
+            raw = _complete_json(
+                self.llm_client,
+                prompt.user_payload,
                 temperature=self.retry_policy.temperature_for(attempt),
+                system_prompt=prompt.system_prompt,
             )
             draft = self.parser.parse_model(raw, SceneDraftContract)
             return SceneOutput(scene_id=draft.scene_id, scene_text=draft.scene_text, metadata=draft.metadata)

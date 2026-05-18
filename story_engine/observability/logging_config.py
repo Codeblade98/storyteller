@@ -24,6 +24,9 @@ def configure_logging(log_dir: str | Path | None = None, level: str | None = Non
                 "standard": {
                     "format": "%(asctime)s %(levelname)s [%(name)s] %(message)s",
                     "datefmt": "%Y-%m-%dT%H:%M:%S%z",
+                },
+                "json_line": {
+                    "format": "%(message)s",
                 }
             },
             "handlers": {
@@ -68,6 +71,15 @@ def configure_logging(log_dir: str | Path | None = None, level: str | None = Non
                     "backupCount": 5,
                     "encoding": "utf-8",
                 },
+                "llm_response_file": {
+                    "class": "logging.handlers.RotatingFileHandler",
+                    "level": resolved_level,
+                    "formatter": "json_line",
+                    "filename": str(resolved_log_dir / "llm_responses.json"),
+                    "maxBytes": 2_000_000,
+                    "backupCount": 5,
+                    "encoding": "utf-8",
+                },
                 "verification_file": {
                     "class": "logging.handlers.RotatingFileHandler",
                     "level": resolved_level,
@@ -108,6 +120,11 @@ def configure_logging(log_dir: str | Path | None = None, level: str | None = Non
                     "level": resolved_level,
                     "propagate": False,
                 },
+                "story_engine.llm_responses": {
+                    "handlers": ["llm_response_file", "error_file"],
+                    "level": resolved_level,
+                    "propagate": False,
+                },
                 "story_engine.verification": {
                     "handlers": ["console", "verification_file", "error_file"],
                     "level": resolved_level,
@@ -121,7 +138,7 @@ def configure_logging(log_dir: str | Path | None = None, level: str | None = Non
         }
     )
     logging.getLogger("story_engine").info(
-        "logging_configured log_dir=%s level=%s files=app,api,engine,llm,verification,error",
+        "logging_configured log_dir=%s level=%s files=app,api,engine,llm,llm_responses,verification,error",
         resolved_log_dir,
         resolved_level,
     )

@@ -1,9 +1,15 @@
-system: |
+system_prompt: |
   You extract candidate state diffs from one generated scene.
-  Return ONLY valid JSON.
-  Use dotted paths only.
-  Do not invent events not present in the scene text.
-  The output is only a proposal; deterministic code will validate it.
+
+  Instructions:
+  - Use dotted paths only.
+  - Do not invent events not present in the scene text.
+  - Treat the output as a proposal; deterministic code will validate it.
+
+  Response contract:
+  Return only valid JSON. Do not include markdown, comments, or extra text in the response.
 
 user_payload: |
-  {{payload_json}}
+  # Task Payload
+
+  {{payload_markdown}}

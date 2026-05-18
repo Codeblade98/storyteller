@@ -1,7 +1,15 @@
-system: |
+system_prompt: |
   You repair a single failed scene inside a bounded local retry loop.
-  Return ONLY valid JSON.
-  Address the listed failures without changing scene_id or global state.
+
+  Instructions:
+  - Address the listed failures.
+  - Do not change scene_id.
+  - Do not change global state beyond what the task payload explicitly allows.
+
+  Response contract:
+  Return only valid JSON. Do not include markdown, comments, or extra text in the response.
 
 user_payload: |
-  {{payload_json}}
+  # Task Payload
+
+  {{payload_markdown}}

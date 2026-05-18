@@ -48,11 +48,14 @@ This document outlines the entire process of the story generation pipeline, deta
 ## **4. Phase 3: Scene Planning**
 **File**: [story_engine/core/planner.py](story_engine/core/planner.py)
 
-**Function**: `ActScenePlanner.plan(spec, pattern)` → `List[ScenePlan]`
+**Function**: `ActScenePlanner.plan(spec, pattern)` → `StoryPlan`
 
 **What it does:**
-- **LLM path** (if available): Calls LLM with planner role to generate detailed scene plans
+- **LLM path** (if available): Calls LLM with planner role in two stages:
+  - First call generates only acts, act summaries, and act-level dependencies
+  - One follow-up call per act generates that act's scenes and scene dependencies
 - **Fallback path**: Creates sequential plans with linear dependencies (S1→S2→S3...)
+- Normalizes LLM output so IDs, scene counts, allowed context keys, and act-exit state updates remain deterministic
 - Each `ScenePlan` includes:
   - `scene_id` (S1, S2, etc.)
   - `goal` (what should happen)
@@ -62,7 +65,7 @@ This document outlines the entire process of the story generation pipeline, deta
   - `required_context` (which state keys needed)
   - `constraints` (age-appropriate, avoid forbidden elements)
 
-**Output**: Ordered list of `ScenePlan` objects
+**Output**: `StoryPlan`, flattened to ordered `ScenePlan` objects before DAG construction
 
 ---
 
@@ -181,7 +184,7 @@ Returns `StoryRun` containing:
 | Stage | Input | Processing | Output |
 |-------|-------|-----------|--------|
 | Specification | StoryInput | Age-based rules | StorySpec |
-| Planning | StorySpec + Pattern | LLM or deterministic | List[ScenePlan] |
+| Planning | StorySpec + Pattern | Two-step LLM or deterministic | StoryPlan / List[ScenePlan] |
 | DAG | ScenePlans | Graph construction | SceneDAG |
 | Per-Scene | (All previous) | Generate → Extract → Verify → Apply | state updated |
 | Assembly | All scenes | Join text | Final story |
@@ -193,7 +196,7 @@ Returns `StoryRun` containing:
 The system has **three levels of fallback**:
 
 1. **Spec Builder**: Always deterministic (no fallback needed)
-2. **Planner**: LLM → Deterministic sequential plans
+2. **Planner**: Act LLM + per-act scene LLM → deterministic per-act fallback → deterministic full-plan fallback
 3. **Generator**: LLM direct → LLM with role routing → Deterministic placeholder
 4. **State Diff Extractor**: LLM → Deterministic based on scene type
 5. **Verifier**: Hard deterministic checks + optional semantic LLM checks

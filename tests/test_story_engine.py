@@ -1,10 +1,15 @@
 """Tests for the story engine and state management."""
 
+from typing import Any
+
 from story_engine.core.engine import StoryEngine
 from story_engine.core.edge_context_designer import EdgeContextDesigner
+from story_engine.core.planner import ActScenePlanner
 from story_engine.core.state_manager import StateManager
+from story_engine.models.llm_contracts import ActPlanningContract, ActScenePlanningContract
 from story_engine.models.scene import SceneOutput, ScenePlan
-from story_engine.models.story_spec import StoryInput
+from story_engine.models.story_spec import StoryInput, StorySpec
+from story_engine.retrieval.patterns import StoryPattern
 from story_engine.verification.state_diff import StateDiffValidator
 
 
@@ -82,6 +87,89 @@ def test_edge_context_designer_rejects_illegal_context_keys() -> None:
 
     assert edge.required_context == ["world_state"]
     assert "full_scene_history" in edge.ignored_context
+
+
+def test_planner_uses_two_step_llm_calls_for_acts_then_scenes() -> None:
+    class FakePlannerRunner:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        def has_client(self, role: str) -> bool:
+            return role == "planner"
+
+        def run_json_task(self, *, role: str, template_name: str, payload: dict[str, Any], output_model: type) -> Any:
+            self.calls.append({"template_name": template_name, "payload": payload, "output_model": output_model})
+            if template_name == "planner_acts_prompt.yaml":
+                return ActPlanningContract(
+                    acts=[
+                        {"act_id": "anything", "act_number": 99, "act_summary": "Open the mystery.", "depends_on": []},
+                        {"act_id": "ignored", "act_number": 99, "act_summary": "Follow the clue.", "depends_on": ["A1"]},
+                        {"act_id": "ignored", "act_number": 99, "act_summary": "Bring it home.", "depends_on": ["A2"]},
+                    ]
+                )
+
+            act_id = payload["act"]["act_id"]
+            scene_count = payload["hard_constraints"]["scene_count"]
+            return ActScenePlanningContract(
+                act_id=act_id,
+                scenes=[
+                    {
+                        "scene_id": f"{act_id}-bad-{index}",
+                        "act_id": act_id,
+                        "act": "setup",
+                        "goal": f"{act_id} scene {index}",
+                        "emotion_level": index,
+                        "depends_on": [] if index == 0 else [f"S{index}"],
+                        "hard_dependencies": [] if index == 0 else [f"S{index}"],
+                        "soft_dependencies": [],
+                        "required_context": ["style_state", "full_scene_history"],
+                        "constraints": [],
+                        "state_updates": {},
+                    }
+                    for index in range(scene_count)
+                ],
+            )
+
+    spec = StorySpec(
+        topic="moon garden",
+        age_group="7-9",
+        genre="fantasy",
+        fear_level=1,
+        length="short",
+        vocab_level="clear",
+        sentence_complexity=2,
+        allowed_conflict=[],
+        forbidden_elements=["gore"],
+        moral_theme="patience",
+        target_scene_count=6,
+    )
+    pattern = StoryPattern(
+        pattern_name="test",
+        acts=["setup", "discovery", "challenge", "cooperation", "resolution", "resolution"],
+        emotion_curve=[0, 1, 2, 3, 2, 1],
+        genres=["fantasy"],
+    )
+    runner = FakePlannerRunner()
+
+    plan = ActScenePlanner(llm_runner=runner).plan(spec, pattern)  # type: ignore[arg-type]
+
+    assert [call["template_name"] for call in runner.calls] == [
+        "planner_acts_prompt.yaml",
+        "planner_scenes_prompt.yaml",
+        "planner_scenes_prompt.yaml",
+        "planner_scenes_prompt.yaml",
+    ]
+    first_payload = runner.calls[0]["payload"]
+    assert "scene_dags" not in first_payload["output_schema"]
+    assert first_payload["hard_constraints"]["target_act_count"] == 3
+    assert [act.act_summary for act in plan.acts] == ["Open the mystery.", "Follow the clue.", "Bring it home."]
+    assert [scene.scene_id for scene in plan.flatten_scenes()] == ["S1", "S2", "S3", "S4", "S5", "S6"]
+    assert all("full_scene_history" not in scene.required_context for scene in plan.flatten_scenes())
+    assert [dag.scenes[-1].state_updates for dag in plan.scene_dags] == [
+        {"story_phase": "A1"},
+        {"story_phase": "A2"},
+        {"story_phase": "A3"},
+    ]
 
 
 def test_state_diff_validator_blocks_unmanaged_mutation() -> None:
